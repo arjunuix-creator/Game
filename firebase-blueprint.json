@@ -1,0 +1,63 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user progress, inventory, and selected character.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "email": { "type": "string", "format": "email" },
+        "selectedCharacterId": { "type": "string" },
+        "level": { "type": "number" },
+        "xp": { "type": "number" },
+        "coins": { "type": "number" },
+        "inventory": { "type": "array", "items": { "type": "string" } },
+        "unlockedOutfits": { "type": "array", "items": { "type": "string" } },
+        "unlockedSkills": { "type": "array", "items": { "type": "string" } },
+        "lastDailyChallenge": { "type": "string" }
+      },
+      "required": ["uid", "displayName", "email"]
+    },
+    "Trade": {
+      "title": "Item Trade",
+      "description": "Represents a trade request between two players.",
+      "type": "object",
+      "properties": {
+        "senderUid": { "type": "string" },
+        "receiverUid": { "type": "string" },
+        "senderItems": { "type": "array", "items": { "type": "string" } },
+        "receiverItems": { "type": "array", "items": { "type": "string" } },
+        "status": { "type": "string", "enum": ["pending", "accepted", "declined"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["senderUid", "receiverUid", "status"]
+    },
+    "LeaderboardEntry": {
+      "title": "Leaderboard Entry",
+      "description": "Public score for the global leaderboard.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "level": { "type": "number" },
+        "score": { "type": "number" }
+      },
+      "required": ["uid", "displayName", "score"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile and progress data."
+    },
+    "/trades/{tradeId}": {
+      "schema": "Trade",
+      "description": "Active and past trade requests."
+    },
+    "/leaderboard/{uid}": {
+      "schema": "LeaderboardEntry",
+      "description": "Global leaderboard rankings."
+    }
+  }
+}

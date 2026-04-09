@@ -1,0 +1,95 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: users
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (required, max 50)
+    //   - email: string (required, email format)
+    //   - selectedCharacterId: string
+    //   - level: number
+    //   - xp: number
+    //   - coins: number
+    //   - inventory: list of strings
+    //   - unlockedOutfits: list of strings
+    //   - unlockedSkills: list of strings
+    //   - lastDailyChallenge: string (ISO date)
+    //
+    // Collection: trades
+    // Fields:
+    //   - senderUid: string (required)
+    //   - receiverUid: string (required)
+    //   - senderItems: list of strings
+    //   - receiverItems: list of strings
+    //   - status: string (pending, accepted, declined)
+    //   - createdAt: timestamp
+    //
+    // Collection: leaderboard
+    // Fields:
+    //   - uid: string (required)
+    //   - displayName: string (required)
+    //   - level: number
+    //   - score: number
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUser(data) {
+      return data.keys().hasAll(['uid', 'displayName', 'email']) &&
+             data.displayName is string && data.displayName.size() <= 50 &&
+             isValidEmail(data.email) &&
+             data.uid == request.auth.uid;
+    }
+
+    function isValidTrade(data) {
+      return data.keys().hasAll(['senderUid', 'receiverUid', 'status']) &&
+             data.status in ['pending', 'accepted', 'declined'] &&
+             data.senderUid == request.auth.uid;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      allow read: if isAuthenticated(); // Allow reading other users for trading/leaderboard
+      allow create: if isOwner(userId) && isValidUser(request.resource.data);
+      allow update: if isOwner(userId) && isValidUser(request.resource.data);
+    }
+
+    match /trades/{tradeId} {
+      allow read: if isAuthenticated() && (request.auth.uid == resource.data.senderUid || request.auth.uid == resource.data.receiverUid);
+      allow create: if isAuthenticated() && isValidTrade(request.resource.data);
+      allow update: if isAuthenticated() && (
+        (request.auth.uid == resource.data.receiverUid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status'])) ||
+        (request.auth.uid == resource.data.senderUid && resource.data.status == 'pending')
+      );
+      allow delete: if isAuthenticated() && request.auth.uid == resource.data.senderUid;
+    }
+
+    match /leaderboard/{userId} {
+      allow read: if true;
+      allow write: if isOwner(userId);
+    }
+  }
+}
